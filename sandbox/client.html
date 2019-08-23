@@ -131,7 +131,8 @@
           params: !acceptsData(method.value) ? getParams() : undefined,
           data: acceptsData(method.value) ? getData() : undefined,
           method: method.value,
-          headers: getHeaders()
+          headers: getHeaders(),
+          slowTime: 20000
         };
 
         request.innerHTML = JSON.stringify(options, null, 2);

@@ -61,7 +61,9 @@ server = http.createServer(function (req, res) {
       res.writeHead(status, {
         'Content-Type': 'application/json'
       });
-      res.end(JSON.stringify(result));
+      setTimeout(() => {
+        res.end(JSON.stringify(result));
+      }, 5000);
     });
   } else {
     res.writeHead(404);

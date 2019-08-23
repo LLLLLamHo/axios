@@ -10,11 +10,11 @@ function handleSuccess(data) { console.log(data); }
 function handleFailure(data) { console.log('error', data); }
 
 // GET
-axios.get(URL, { params: BODY })
+axios.get(URL, { params: BODY, slowTime: 2000 })
   .then(handleSuccess)
   .catch(handleFailure);
 
 // POST
-axios.post(URL, BODY)
+axios.post(URL, BODY, {slowTime: 2000})
   .then(handleSuccess)
   .catch(handleFailure);

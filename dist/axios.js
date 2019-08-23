@@ -99,7 +99,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	// Factory for creating new instances
 	axios.create = function create(instanceConfig) {
 	  // 记录slowTime
-	  eagleeye.setSlowTime(defaultConfig.slowTime);
+	  eagleeye.setSlowTime(defaults.slowTime);
 	  return createInstance(mergeConfig(axios.defaults, instanceConfig));
 	};
 	
@@ -581,6 +581,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
 	  /*eslint func-names:0*/
 	  Axios.prototype[method] = function(url, data, config) {
+	    console.log('=====', config);
 	    return this.request(utils.merge(config || {}, {
 	      method: method,
 	      url: url,
@@ -935,7 +936,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	   */
 	  timeout: 0,
 	
-	  slowTime: 400,
+	  slowTime: 600,
 	
 	  xsrfCookieName: 'XSRF-TOKEN',
 	  xsrfHeaderName: 'X-XSRF-TOKEN',
@@ -1026,7 +1027,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      data: config.data
 	    });
 	
-	    request.open(config.method.toUpperCase(), url, true);
+	    request.open(config.method.toUpperCase(), eagleeye.getRequestUrl(requestItemKey, url), true);
 	
 	    // Set the request timeout in MS
 	    request.timeout = config.timeout;
@@ -1085,7 +1086,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      // 记录返回信息
 	      eagleeye.setRequestItemResInfo(requestItemKey, {
 	        data: null,
-	        status: 'error',
+	        status: 2,
 	        statusText: null,
 	        headers: null,
 	        config: config,
@@ -1104,7 +1105,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      // 记录返回信息
 	      eagleeye.setRequestItemResInfo(requestItemKey, {
 	        data: null,
-	        status: 'timeout',
+	        status: 1,
 	        statusText: null,
 	        headers: null,
 	        config: config,
@@ -1445,6 +1446,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	var slowTime = 400;
 	var requestObj = {};
 	
+	function toFixed(s, n) {
+	  return Math.round(s * Math.pow(10, n)) / Math.pow(10, n);
+	}
+	
 	// 记录慢请求时间
 	function setSlowTime(time) {
 	  slowTime = time || slowTime;
@@ -1455,6 +1460,39 @@ return /******/ (function(modules) { // webpackBootstrap
 	    delete requestObj[key];
 	  }
 	  setSlowTime(400);
+	}
+	
+	function getPerformance(name) {
+	  var entries = window.performance.getEntriesByName(name);
+	  var entry = entries && entries[0] ? entries[0] : null;
+	  var result = null;
+	  if ( entry ) {
+	    result = {
+	      encodedBodySize: entry.encodedBodySize,
+	      decodedBodySize: entry.decodedBodySize,
+	      nextHopProtocol: entry.nextHopProtocol,
+	      // 谁发起的请求
+	      // link 即 <link> 标签、script 即 <script>、redirect 即重定向、xmlhttprequest 既ajax
+	      //   initiatorType: entry.initiatorType,
+	      //   entryType: entry.entryType, // 资源类型
+	      //   name: entry.name,
+	      timing: {
+	        // 重定向的时间
+	        redirect: toFixed(entry.redirectEnd - entry.redirectStart, 3),
+	        // 域名解析的耗时
+	        dns: toFixed(entry.domainLookupEnd - entry.domainLookupStart, 3),
+	        // TCP连接的耗时
+	        conn: toFixed(entry.connectEnd - entry.connectStart, 3),
+	        // 发出HTTP请求后，收到（或从本地缓存读取）第一个字节时响应耗时
+	        ttfb: toFixed(entry.responseStart - entry.requestStart, 3),
+	        // 从服务器下载内容耗时
+	        download: toFixed(entry.responseEnd - entry.responseStart, 3),
+	        // 总耗时
+	        duration: toFixed(entry.duration, 3),
+	      }
+	    };
+	  }
+	  return result;
 	}
 	
 	function validationRequest(key) {
@@ -1468,11 +1506,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var itemSlowTime = data.slowTime;
 	  var eaData = null;
 	  // 判断返回的状态 可能是状态码，可能是超时，可能是错误
-	  if ( status === 'error' ) {
+	  if ( status === 2 ) {
 	    eaData = {
 	      label: '请求出错',
 	      apiLogType: 'error',
-	      responseCode: 'error',
+	      responseCode: 2,
 	      apiRequestUrl: reqInfo.url,
 	      apiRequestData: {
 	        method: reqInfo.method,
@@ -1480,11 +1518,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      },
 	      apiResponseData: null
 	    };
-	  } else if ( status === 'timeout' ) {
+	  } else if ( status === 1 ) {
 	    eaData = {
 	      label: '请求超时',
 	      apiLogType: 'timeout',
-	      responseCode: 'timeout',
+	      responseCode: 1,
 	      apiRequestUrl: reqInfo.url,
 	      apiRequestData: {
 	        method: reqInfo.method,
@@ -1498,7 +1536,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (!validateStatus || validateStatus(resInfo.status)) {
 	      // 判断是否慢请求
 	      var requestTime = endTime - startTime;
-	      if ( requestTime > itemSlowTime ) {
+	      // 如果浏览器支持performance，用performance来计算
+	      if ( window.performance && window.performance.getEntriesByName ) {
+	        var performanceData = getPerformance(resInfo.request.responseURL || '');
+	        if ( performanceData && performanceData.timing.duration > itemSlowTime ) {
+	          eaData = {
+	            label: '慢请求',
+	            apiLogType: 'slow',
+	            requestTime: performanceData.timing.duration,
+	            goodRequestTime: itemSlowTime,
+	            responseCode: resInfo.status,
+	            apiRequestUrl: reqInfo.url,
+	            apiRequestData: {
+	              method: reqInfo.method,
+	              headers: reqInfo.headers
+	            },
+	            apiResponseData: {
+	              headers: resInfo.headers
+	            },
+	            performance: performanceData
+	          };
+	        }
+	      } else if ( requestTime > itemSlowTime ) {
 	        eaData = {
 	          label: '慢请求',
 	          apiLogType: 'slow',
@@ -1531,7 +1590,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      };
 	    }
 	  }
-	  ea && ea('log', 'apiMonitor', eaData);
+	  console.log(eaData);
+	  window.ea && eaData && window.ea('log', 'apiMonitor', eaData);
 	}
 	
 	// 获取慢请求时间
@@ -1542,6 +1602,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	function createRequestItem() {
 	  var key = Date.now();
 	  requestObj[key] = {
+	    id: null,
 	    startTime: null,
 	    endTime: null,
 	    slowTime: 400,
@@ -1553,6 +1614,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	function setRequestItemReqInfo(key, info) {
 	  requestObj[key].reqInfo = info;
+	  // 因为需要获取performance.getEntriesByName，考虑post请求或者RESTful设计方式，post的url一样，所以会自动为url添加一个标识
+	  if ( window.performance && window.performance.getEntriesByName ) {
+	    requestObj[key].id = Date.now();
+	  }
+	}
+	
+	function getRequestUrl(key, url) {
+	  if ( !requestObj[key] ) return url;
+	  var id = requestObj[key].id;
+	  if ( !id ) {
+	    return url;
+	  }
+	  var newUrl = url;
+	  if ( url.indexOf('?') !== -1 ) {
+	    newUrl += '&_eareqid=' + id;
+	  } else {
+	    newUrl += '?_eareqid=' + id;
+	  }
+	  return newUrl;
 	}
 	
 	function setRequestItemResInfo(key, info) {
@@ -1582,7 +1662,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  setRequestItemStartTime: setRequestItemStartTime,
 	  setRequestItemEndTime: setRequestItemEndTime,
 	  clearItem: clearItem,
-	  setRequestItemSlowTime: setRequestItemSlowTime
+	  setRequestItemSlowTime: setRequestItemSlowTime,
+	  getRequestUrl: getRequestUrl
 	};
 
 
