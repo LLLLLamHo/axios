@@ -1,4 +1,3 @@
-/* axios v0.19.0 | (c) 2019 by Matt Zabriskie */
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -66,8 +65,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	var utils = __webpack_require__(2);
 	var bind = __webpack_require__(3);
 	var Axios = __webpack_require__(5);
-	var mergeConfig = __webpack_require__(22);
+	var mergeConfig = __webpack_require__(23);
 	var defaults = __webpack_require__(11);
+	var eagleeye = __webpack_require__(19);
 	
 	/**
 	 * Create an instance of Axios
@@ -84,9 +84,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	  // Copy context to instance
 	  utils.extend(instance, context);
-	
 	  return instance;
 	}
+	
+	// 记录slowTime
+	eagleeye.setSlowTime(defaults.slowTime);
 	
 	// Create the default instance to be exported
 	var axios = createInstance(defaults);
@@ -96,19 +98,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	// Factory for creating new instances
 	axios.create = function create(instanceConfig) {
+	  // 记录slowTime
+	  eagleeye.setSlowTime(defaultConfig.slowTime);
 	  return createInstance(mergeConfig(axios.defaults, instanceConfig));
 	};
 	
 	// Expose Cancel & CancelToken
-	axios.Cancel = __webpack_require__(23);
-	axios.CancelToken = __webpack_require__(24);
+	axios.Cancel = __webpack_require__(24);
+	axios.CancelToken = __webpack_require__(25);
 	axios.isCancel = __webpack_require__(10);
 	
 	// Expose all/spread
 	axios.all = function all(promises) {
 	  return Promise.all(promises);
 	};
-	axios.spread = __webpack_require__(25);
+	axios.spread = __webpack_require__(26);
 	
 	module.exports = axios;
 	
@@ -500,7 +504,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	var buildURL = __webpack_require__(6);
 	var InterceptorManager = __webpack_require__(7);
 	var dispatchRequest = __webpack_require__(8);
-	var mergeConfig = __webpack_require__(22);
+	var mergeConfig = __webpack_require__(23);
+	var eagleeye = __webpack_require__(19);
 	
 	/**
 	 * Create a new instance of Axios
@@ -521,6 +526,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Object} config The config specific for this request (merged with this.defaults)
 	 */
 	Axios.prototype.request = function request(config) {
+	  // 如果传入slowTime，那么将重置slowTIme
+	  if ( config.slowTime ) {
+	    eagleeye.setSlowTime(config.slowTime);
+	    delete config.setSlowTime;
+	  }
 	  /*eslint no-param-reassign:0*/
 	  // Allow for axios('example/url'[, config]) a la fetch API
 	  if (typeof config === 'string') {
@@ -727,8 +737,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	var transformData = __webpack_require__(9);
 	var isCancel = __webpack_require__(10);
 	var defaults = __webpack_require__(11);
-	var isAbsoluteURL = __webpack_require__(20);
-	var combineURLs = __webpack_require__(21);
+	var isAbsoluteURL = __webpack_require__(21);
+	var combineURLs = __webpack_require__(22);
+	var eagleeye = __webpack_require__(19);
 	
 	/**
 	 * Throws a `Cancel` if cancellation has been requested.
@@ -778,8 +789,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  );
 	
 	  var adapter = config.adapter || defaults.adapter;
-	
-	  return adapter(config).then(function onAdapterResolution(response) {
+	  // 创建请求item记录请求上报信息
+	  var requestItemKey = eagleeye.createRequestItem();
+	  return adapter(config, requestItemKey).then(function onAdapterResolution(response) {
 	    throwIfCancellationRequested(config);
 	
 	    // Transform response data
@@ -923,6 +935,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	   */
 	  timeout: 0,
 	
+	  slowTime: 400,
+	
 	  xsrfCookieName: 'XSRF-TOKEN',
 	  xsrfHeaderName: 'X-XSRF-TOKEN',
 	
@@ -980,9 +994,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	var parseHeaders = __webpack_require__(17);
 	var isURLSameOrigin = __webpack_require__(18);
 	var createError = __webpack_require__(15);
+	var eagleeye = __webpack_require__(19);
 	
-	module.exports = function xhrAdapter(config) {
+	module.exports = function xhrAdapter(config, requestItemKey) {
 	  return new Promise(function dispatchXhrRequest(resolve, reject) {
+	    // 报错慢请求时间到item中
+	    var slowTime = eagleeye.getSlowTime();
+	    slowTime && eagleeye.setRequestItemSlowTime(requestItemKey, slowTime);
 	    var requestData = config.data;
 	    var requestHeaders = config.headers;
 	
@@ -999,7 +1017,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	      requestHeaders.Authorization = 'Basic ' + btoa(username + ':' + password);
 	    }
 	
-	    request.open(config.method.toUpperCase(), buildURL(config.url, config.params, config.paramsSerializer), true);
+	    var url = buildURL(config.url, config.params, config.paramsSerializer);
+	    // 记录请求数据
+	    eagleeye.setRequestItemReqInfo(requestItemKey, {
+	      url: url,
+	      method: config.method,
+	      headers: config.headers,
+	      data: config.data
+	    });
+	
+	    request.open(config.method.toUpperCase(), url, true);
 	
 	    // Set the request timeout in MS
 	    request.timeout = config.timeout;
@@ -1018,6 +1045,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return;
 	      }
 	
+	      eagleeye.setRequestItemEndTime(requestItemKey, Date.now());
+	
 	      // Prepare the response
 	      var responseHeaders = 'getAllResponseHeaders' in request ? parseHeaders(request.getAllResponseHeaders()) : null;
 	      var responseData = !config.responseType || config.responseType === 'text' ? request.responseText : request.response;
@@ -1029,7 +1058,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        config: config,
 	        request: request
 	      };
-	
+	      // 记录返回信息
+	      eagleeye.setRequestItemResInfo(requestItemKey, response);
 	      settle(resolve, reject, response);
 	
 	      // Clean up request
@@ -1038,6 +1068,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	    // Handle browser request cancellation (as opposed to a manual cancellation)
 	    request.onabort = function handleAbort() {
+	      // 清除请求信息
+	      eagleeye.clearItem(requestItemKey);
 	      if (!request) {
 	        return;
 	      }
@@ -1050,6 +1082,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	    // Handle low level network errors
 	    request.onerror = function handleError() {
+	      // 记录返回信息
+	      eagleeye.setRequestItemResInfo(requestItemKey, {
+	        data: null,
+	        status: 'error',
+	        statusText: null,
+	        headers: null,
+	        config: config,
+	        request: request
+	      });
 	      // Real errors are hidden from us by the browser
 	      // onerror should only fire if it's a network error
 	      reject(createError('Network Error', config, null, request));
@@ -1060,6 +1101,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	    // Handle timeout
 	    request.ontimeout = function handleTimeout() {
+	      // 记录返回信息
+	      eagleeye.setRequestItemResInfo(requestItemKey, {
+	        data: null,
+	        status: 'timeout',
+	        statusText: null,
+	        headers: null,
+	        config: config,
+	        request: request
+	      });
 	      reject(createError('timeout of ' + config.timeout + 'ms exceeded', config, 'ECONNABORTED',
 	        request));
 	
@@ -1071,7 +1121,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // This is only done if running in a standard browser environment.
 	    // Specifically not if we're in a web worker, or react-native.
 	    if (utils.isStandardBrowserEnv()) {
-	      var cookies = __webpack_require__(19);
+	      var cookies = __webpack_require__(20);
 	
 	      // Add xsrf header
 	      var xsrfValue = (config.withCredentials || isURLSameOrigin(config.url)) && config.xsrfCookieName ?
@@ -1142,6 +1192,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      requestData = null;
 	    }
 	
+	    // 记录时间
+	    eagleeye.setRequestItemStartTime(requestItemKey, Date.now());
 	    // Send the request
 	    request.send(requestData);
 	  });
@@ -1386,6 +1438,156 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ }),
 /* 19 */
+/***/ (function(module, exports) {
+
+	'use strict';
+	
+	var slowTime = 400;
+	var requestObj = {};
+	
+	// 记录慢请求时间
+	function setSlowTime(time) {
+	  slowTime = time || slowTime;
+	}
+	
+	function clearItem(key) {
+	  if (requestObj[key]) {
+	    delete requestObj[key];
+	  }
+	  setSlowTime(400);
+	}
+	
+	function validationRequest(key) {
+	  var data = requestObj[key];
+	  if (!data) return;
+	  var startTime = data.startTime;
+	  var endTime = data.endTime;
+	  var reqInfo = data.reqInfo;
+	  var resInfo = data.resInfo;
+	  var status = resInfo.status;
+	  var itemSlowTime = data.slowTime;
+	  var eaData = null;
+	  // 判断返回的状态 可能是状态码，可能是超时，可能是错误
+	  if ( status === 'error' ) {
+	    eaData = {
+	      label: '请求出错',
+	      apiLogType: 'error',
+	      responseCode: 'error',
+	      apiRequestUrl: reqInfo.url,
+	      apiRequestData: {
+	        method: reqInfo.method,
+	        headers: reqInfo.headers
+	      },
+	      apiResponseData: null
+	    };
+	  } else if ( status === 'timeout' ) {
+	    eaData = {
+	      label: '请求超时',
+	      apiLogType: 'timeout',
+	      responseCode: 'timeout',
+	      apiRequestUrl: reqInfo.url,
+	      apiRequestData: {
+	        method: reqInfo.method,
+	        headers: reqInfo.headers
+	      },
+	      apiResponseData: null
+	    };
+	  } else {
+	    // 判断状态码
+	    var validateStatus = resInfo.config.validateStatus;
+	    if (!validateStatus || validateStatus(resInfo.status)) {
+	      // 判断是否慢请求
+	      var requestTime = endTime - startTime;
+	      if ( requestTime > itemSlowTime ) {
+	        eaData = {
+	          label: '慢请求',
+	          apiLogType: 'slow',
+	          requestTime: requestTime,
+	          goodRequestTime: itemSlowTime,
+	          responseCode: resInfo.status,
+	          apiRequestUrl: reqInfo.url,
+	          apiRequestData: {
+	            method: reqInfo.method,
+	            headers: reqInfo.headers
+	          },
+	          apiResponseData: {
+	            headers: resInfo.headers
+	          }
+	        };
+	      }
+	    } else {
+	      eaData = {
+	        label: '服务器返回异常',
+	        apiLogType: 'error',
+	        responseCode: resInfo.status,
+	        apiRequestUrl: reqInfo.url,
+	        apiRequestData: {
+	          method: reqInfo.method,
+	          headers: reqInfo.headers
+	        },
+	        apiResponseData: {
+	          headers: resInfo.headers
+	        }
+	      };
+	    }
+	  }
+	  ea && ea('log', 'apiMonitor', eaData);
+	}
+	
+	// 获取慢请求时间
+	function getSlowTime() {
+	  return slowTime;
+	}
+	
+	function createRequestItem() {
+	  var key = Date.now();
+	  requestObj[key] = {
+	    startTime: null,
+	    endTime: null,
+	    slowTime: 400,
+	    reqInfo: {},
+	    resInfo: {}
+	  };
+	  return key;
+	}
+	
+	function setRequestItemReqInfo(key, info) {
+	  requestObj[key].reqInfo = info;
+	}
+	
+	function setRequestItemResInfo(key, info) {
+	  requestObj[key].resInfo = info;
+	  validationRequest(key);
+	  clearItem(key);
+	}
+	
+	function setRequestItemSlowTime(key, time) {
+	  requestObj[key].slowTime = time;
+	}
+	
+	function setRequestItemStartTime(key, time) {
+	  requestObj[key].startTime = time;
+	}
+	
+	function setRequestItemEndTime(key, time) {
+	  requestObj[key].endTime = time;
+	}
+	
+	module.exports = {
+	  getSlowTime: getSlowTime,
+	  setSlowTime: setSlowTime,
+	  createRequestItem: createRequestItem,
+	  setRequestItemReqInfo: setRequestItemReqInfo,
+	  setRequestItemResInfo: setRequestItemResInfo,
+	  setRequestItemStartTime: setRequestItemStartTime,
+	  setRequestItemEndTime: setRequestItemEndTime,
+	  clearItem: clearItem,
+	  setRequestItemSlowTime: setRequestItemSlowTime
+	};
+
+
+/***/ }),
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -1444,7 +1646,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ (function(module, exports) {
 
 	'use strict';
@@ -1464,7 +1666,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, exports) {
 
 	'use strict';
@@ -1484,7 +1686,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -1541,7 +1743,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ (function(module, exports) {
 
 	'use strict';
@@ -1566,12 +1768,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var Cancel = __webpack_require__(23);
+	var Cancel = __webpack_require__(24);
 	
 	/**
 	 * A `CancelToken` is an object that can be used to request cancellation of an operation.
@@ -1629,7 +1831,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ }),
-/* 25 */
+/* 26 */
 /***/ (function(module, exports) {
 
 	'use strict';
