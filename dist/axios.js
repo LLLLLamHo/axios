@@ -581,7 +581,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
 	  /*eslint func-names:0*/
 	  Axios.prototype[method] = function(url, data, config) {
-	    console.log('=====', config);
 	    return this.request(utils.merge(config || {}, {
 	      method: method,
 	      url: url,
@@ -1505,13 +1504,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var status = resInfo.status;
 	  var itemSlowTime = data.slowTime;
 	  var eaData = null;
+	  var reqURL = reqInfo.url.match(/(http)+|(https)+/g) ? reqInfo.url : window.location.origin + reqInfo.url;
 	  // 判断返回的状态 可能是状态码，可能是超时，可能是错误
 	  if ( status === 2 ) {
 	    eaData = {
 	      label: '请求出错',
 	      apiLogType: 'error',
 	      responseCode: 2,
-	      apiRequestUrl: reqInfo.url,
+	      apiRequestUrl: reqURL,
 	      apiRequestData: {
 	        method: reqInfo.method,
 	        headers: reqInfo.headers
@@ -1523,7 +1523,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      label: '请求超时',
 	      apiLogType: 'timeout',
 	      responseCode: 1,
-	      apiRequestUrl: reqInfo.url,
+	      apiRequestUrl: reqURL,
 	      apiRequestData: {
 	        method: reqInfo.method,
 	        headers: reqInfo.headers
@@ -1546,7 +1546,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            requestTime: performanceData.timing.duration,
 	            goodRequestTime: itemSlowTime,
 	            responseCode: resInfo.status,
-	            apiRequestUrl: reqInfo.url,
+	            apiRequestUrl: reqURL,
 	            apiRequestData: {
 	              method: reqInfo.method,
 	              headers: reqInfo.headers
@@ -1564,7 +1564,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          requestTime: requestTime,
 	          goodRequestTime: itemSlowTime,
 	          responseCode: resInfo.status,
-	          apiRequestUrl: reqInfo.url,
+	          apiRequestUrl: reqURL,
 	          apiRequestData: {
 	            method: reqInfo.method,
 	            headers: reqInfo.headers
@@ -1579,7 +1579,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        label: '服务器返回异常',
 	        apiLogType: 'error',
 	        responseCode: resInfo.status,
-	        apiRequestUrl: reqInfo.url,
+	        apiRequestUrl: reqURL,
 	        apiRequestData: {
 	          method: reqInfo.method,
 	          headers: reqInfo.headers
@@ -1590,7 +1590,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	      };
 	    }
 	  }
-	  console.log(eaData);
 	  window.ea && eaData && window.ea('log', 'apiMonitor', eaData);
 	}
 	
@@ -1605,7 +1604,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    id: null,
 	    startTime: null,
 	    endTime: null,
-	    slowTime: 400,
+	    slowTime: 600,
 	    reqInfo: {},
 	    resInfo: {}
 	  };
