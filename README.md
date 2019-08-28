@@ -48,4 +48,14 @@ axios.post(URL, BODY, {slowTime: 2000})
 
 ```
 
+### 自定义上传
+
+为满足RN上报，提供自定义上报函数的传入方式。
+
+```JavaScript
+this.http = axios.create({
+  customUpload: () => {}
+});
+```
+
 MIT
