@@ -54,7 +54,7 @@ axios.post(URL, BODY, {slowTime: 2000})
 
 ```JavaScript
 this.http = axios.create({
-  customUpload: () => {}
+  customUpload: (data) => {}
 });
 ```
 
