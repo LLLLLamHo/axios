@@ -98,6 +98,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	// Factory for creating new instances
 	axios.create = function create(instanceConfig) {
+	  if ( instanceConfig.customUpload ) {
+	    eagleeye.setUploadFn(instanceConfig.customUpload);
+	    delete instanceConfig.customUpload;
+	  }
 	  // 记录slowTime
 	  eagleeye.setSlowTime(defaults.slowTime);
 	  return createInstance(mergeConfig(axios.defaults, instanceConfig));
@@ -1444,6 +1448,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 	
 	var slowTime = 800;
+	var uploadFn = null;
 	var requestObj = {};
 	
 	function toFixed(s, n) {
@@ -1608,7 +1613,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      };
 	    }
 	  }
-	  window.ea && eaData && window.ea('log', 'apiMonitor', eaData);
+	  if ( uploadFn ) {
+	    uploadFn( eaData );
+	  } else {
+	    window.ea && eaData && window.ea('log', 'apiMonitor', eaData);
+	  }
 	}
 	
 	// 获取慢请求时间
@@ -1676,6 +1685,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  requestObj[key].endTime = time;
 	}
 	
+	function setUploadFn(fn) {
+	  if (fn ) {
+	    uploadFn = fn;
+	  }
+	}
+	
 	module.exports = {
 	  getSlowTime: getSlowTime,
 	  setSlowTime: setSlowTime,
@@ -1686,7 +1701,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  setRequestItemEndTime: setRequestItemEndTime,
 	  clearItem: clearItem,
 	  setRequestItemSlowTime: setRequestItemSlowTime,
-	  getRequestUrl: getRequestUrl
+	  getRequestUrl: getRequestUrl,
+	  setUploadFn: setUploadFn
 	};
 
 
