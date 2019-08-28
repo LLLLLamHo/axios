@@ -757,6 +757,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @returns {Promise} The Promise to be fulfilled
 	 */
 	module.exports = function dispatchRequest(config) {
+	  // 创建请求item记录请求上报信息
+	  var requestItemKey = eagleeye.createRequestItem();
+	
 	  throwIfCancellationRequested(config);
 	
 	  // Support baseURL config
@@ -789,8 +792,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  );
 	
 	  var adapter = config.adapter || defaults.adapter;
-	  // 创建请求item记录请求上报信息
-	  var requestItemKey = eagleeye.createRequestItem();
 	  return adapter(config, requestItemKey).then(function onAdapterResolution(response) {
 	    throwIfCancellationRequested(config);
 	
@@ -1629,10 +1630,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	
 	function setRequestItemReqInfo(key, info) {
-	  requestObj[key].reqInfo = info;
-	  // 因为需要获取performance.getEntriesByName，考虑post请求或者RESTful设计方式，post的url一样，所以会自动为url添加一个标识
-	  if ( window.performance && window.performance.getEntriesByName ) {
-	    requestObj[key].id = Date.now();
+	  if ( requestObj[key] ) {
+	    requestObj[key].reqInfo = info;
+	    // 因为需要获取performance.getEntriesByName，考虑post请求或者RESTful设计方式，post的url一样，所以会自动为url添加一个标识
+	    if ( window.performance && window.performance.getEntriesByName ) {
+	      requestObj[key].id = Date.now();
+	    }
 	  }
 	}
 	
@@ -1652,20 +1655,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	
 	function setRequestItemResInfo(key, info) {
+	  if (!requestObj[key]) return;
 	  requestObj[key].resInfo = info;
 	  validationRequest(key);
 	  clearItem(key);
 	}
 	
 	function setRequestItemSlowTime(key, time) {
+	  if (!requestObj[key]) return;
 	  requestObj[key].slowTime = time;
 	}
 	
 	function setRequestItemStartTime(key, time) {
+	  if (!requestObj[key]) return;
 	  requestObj[key].startTime = time;
 	}
 	
 	function setRequestItemEndTime(key, time) {
+	  if (!requestObj[key]) return;
 	  requestObj[key].endTime = time;
 	}
 	
