@@ -935,7 +935,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	   */
 	  timeout: 0,
 	
-	  slowTime: 600,
+	  slowTime: 800,
 	
 	  xsrfCookieName: 'XSRF-TOKEN',
 	  xsrfHeaderName: 'X-XSRF-TOKEN',
@@ -1442,7 +1442,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 	
-	var slowTime = 400;
+	var slowTime = 800;
 	var requestObj = {};
 	
 	function toFixed(s, n) {
@@ -1458,7 +1458,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (requestObj[key]) {
 	    delete requestObj[key];
 	  }
-	  setSlowTime(400);
+	  setSlowTime(800);
 	}
 	
 	function getPerformance(name) {
@@ -1487,7 +1487,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        // 从服务器下载内容耗时
 	        download: toFixed(entry.responseEnd - entry.responseStart, 3),
 	        // 总耗时
-	        duration: toFixed(entry.duration, 3),
+	        duration: toFixed(entry.duration, 3)
 	      }
 	    };
 	  }
@@ -1505,6 +1505,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var itemSlowTime = data.slowTime;
 	  var eaData = null;
 	  var reqURL = reqInfo.url.match(/(http)+|(https)+/g) ? reqInfo.url : window.location.origin + reqInfo.url;
+	  var query = null;
+	  // 考虑到GET请求参数在url，所有如果url存在？那么会进行切割
+	  if ( reqURL.indexOf('?') !== -1 ) {
+	    try {
+	      var splitData = reqURL.split('?');
+	      reqURL = splitData[0];
+	      query = splitData[1] ? decodeURIComponent(splitData[1]) : null;
+	    } catch (err) {
+	      console.error(err);
+	    }
+	  }
+	
 	  // 判断返回的状态 可能是状态码，可能是超时，可能是错误
 	  if ( status === 2 ) {
 	    eaData = {
@@ -1514,7 +1526,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      apiRequestUrl: reqURL,
 	      apiRequestData: {
 	        method: reqInfo.method,
-	        headers: reqInfo.headers
+	        headers: reqInfo.headers,
+	        query: query
 	      },
 	      apiResponseData: null
 	    };
@@ -1526,7 +1539,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      apiRequestUrl: reqURL,
 	      apiRequestData: {
 	        method: reqInfo.method,
-	        headers: reqInfo.headers
+	        headers: reqInfo.headers,
+	        query: query
 	      },
 	      apiResponseData: null
 	    };
@@ -1549,7 +1563,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	            apiRequestUrl: reqURL,
 	            apiRequestData: {
 	              method: reqInfo.method,
-	              headers: reqInfo.headers
+	              headers: reqInfo.headers,
+	              query: query
 	            },
 	            apiResponseData: {
 	              headers: resInfo.headers
@@ -1567,7 +1582,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	          apiRequestUrl: reqURL,
 	          apiRequestData: {
 	            method: reqInfo.method,
-	            headers: reqInfo.headers
+	            headers: reqInfo.headers,
+	            query: query
 	          },
 	          apiResponseData: {
 	            headers: resInfo.headers
@@ -1582,7 +1598,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        apiRequestUrl: reqURL,
 	        apiRequestData: {
 	          method: reqInfo.method,
-	          headers: reqInfo.headers
+	          headers: reqInfo.headers,
+	          query: query
 	        },
 	        apiResponseData: {
 	          headers: resInfo.headers
@@ -1604,7 +1621,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    id: null,
 	    startTime: null,
 	    endTime: null,
-	    slowTime: 600,
+	    slowTime: 800,
 	    reqInfo: {},
 	    resInfo: {}
 	  };
