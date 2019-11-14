@@ -1643,7 +1643,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	
 	function createRequestItem () {
-	  var key = Date.now();
+	  var key = Date.now() + (Math.floor(Math.random() * 1000));
 	  requestObj[key] = {
 	    id: null,
 	    startTime: null,
