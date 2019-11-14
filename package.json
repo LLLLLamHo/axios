@@ -1,6 +1,6 @@
 {
   "name": "zzc-axios",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "Promise based HTTP client for the browser and node.js",
   "main": "index.js",
   "scripts": {

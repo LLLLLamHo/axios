@@ -1510,7 +1510,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var status = resInfo.status;
 	  var itemSlowTime = data.slowTime;
 	  var eaData = null;
-	  var reqURL = reqInfo.url.match( /(http)+|(https)+/g ) ? reqInfo.url : window.location.origin + reqInfo.url;
+	  var reqURL = (reqInfo && reqInfo.url.match( /(http)+|(https)+/g )) ? reqInfo.url : window.location.origin + reqInfo.url;
 	  var query = null;
 	  // 考虑到GET请求参数在url，所有如果url存在？那么会进行切割
 	  if ( reqURL.indexOf( '?' ) !== -1 ) {
