@@ -1568,8 +1568,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	            responseCode: resInfo.status,
 	            apiRequestUrl: reqURL,
 	            apiRequestData: {
-	              method: reqInfo.method,
-	              headers: reqInfo.headers,
+	              method: reqInfo.method || null,
+	              headers: reqInfo.headers || null,
+	              body: reqInfo.data || null,
 	              query: query
 	            },
 	            apiResponseData: {
