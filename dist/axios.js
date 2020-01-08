@@ -1533,7 +1533,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      apiRequestData: {
 	        method: reqInfo.method,
 	        headers: reqInfo.headers,
-	        query: query
+	        query: query,
+	        body: reqInfo.data || ''
 	      },
 	      apiResponseData: null
 	    };
@@ -1546,7 +1547,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      apiRequestData: {
 	        method: reqInfo.method,
 	        headers: reqInfo.headers,
-	        query: query
+	        query: query,
+	        body: reqInfo.data || ''
 	      },
 	      apiResponseData: null
 	    };
@@ -1623,7 +1625,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        apiRequestData: {
 	          method: reqInfo.method,
 	          headers: reqInfo.headers,
-	          query: query
+	          query: query,
+	          body: reqInfo.data || ''
 	        },
 	        apiResponseData: {
 	          headers: resInfo.headers
